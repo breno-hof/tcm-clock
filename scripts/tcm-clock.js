@@ -64,7 +64,10 @@ class TCMClock extends ApplicationV2 {
 		// Re-render overlay when settings change
 		Hooks.on('updateSetting', (setting) => {
 			if (setting.key.startsWith(`${TCM_CONSTANTS.MODULE_ID}.`)) {
-				this.render({ force: true });
+				const clockVisible = TCMUtils.getSetting('clockVisible');
+				if (clockVisible) {
+					this.render({ force: true });
+				}
 			}
 		});
 
