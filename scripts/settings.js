@@ -211,7 +211,7 @@ export class TCMClockSettings {
 			scope: 'user',
 			config: true,
 			type: Number,
-			default: 1.0,
+			default: 0.75,
 			requiresReload: true,
 			range: {
 				min: TCM_CONSTANTS.SCALE_LIMITS.MIN,
