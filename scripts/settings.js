@@ -198,7 +198,7 @@ export class TCMClockSettings {
 		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'clockVisible', {
 			name: 'Clock Visible',
 			hint: 'Whether the clock overlay is visible',
-			scope: 'local',
+			scope: 'user',
 			config: false,
 			type: Boolean,
 			default: true
@@ -208,7 +208,7 @@ export class TCMClockSettings {
 		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'clockScale', {
 			name: 'Clock Scale',
 			hint: 'Scale factor for the clock widget size (0.5-2.0)',
-			scope: 'client',
+			scope: 'user',
 			config: true,
 			type: Number,
 			default: 1.0,
