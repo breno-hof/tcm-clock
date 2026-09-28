@@ -51,3 +51,4 @@ Licensed under either of the following, at your choice:
 The original work is by Klaas-Jan Boon. This fork is maintained by `breno-hof`; modified files should retain the original attribution and identify the fork's changes when redistributed under Apache 2.0.
 
 Unless explicitly stated otherwise, contributions intentionally submitted for inclusion in this repository are dual-licensed as above, without additional terms or conditions.
+
