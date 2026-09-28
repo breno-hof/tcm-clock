@@ -17,11 +17,12 @@ class TCMClock extends ApplicationV2 {
 		this.lighting = new TCMClockLighting();
 		this.animations = new TCMClockAnimations();
 		this.previousSegment = null;
+		this.timeMutation = Promise.resolve();
+		this.visibilityMutation = Promise.resolve();
 	}
 
 	static getInstance() {
 		if (!TCMClock.instance) {
-			// Apply scale setting
 			const scale = TCMUtils.getSetting('clockScale');
 
 			TCMClock.instance = new TCMClock({
@@ -39,68 +40,89 @@ class TCMClock extends ApplicationV2 {
 		return TCMClock.instance;
 	}
 
-
 	initialize() {
-		// Initialize previous segment to current value
 		this.previousSegment = TCMUtils.getSetting('currentSegment');
-
-		// Register socket for syncing between players
 		game.socket.on(this.socket, this._onSocketMessage.bind(this));
 
-		// Hook into canvas ready to add our overlay
 		Hooks.on('canvasReady', async () => {
-			const clockVisible = TCMUtils.getSetting('clockVisible');
-			if (clockVisible) {
-				await this.render({ force: true });
-			}
+			this.lighting.initialize();
+			await this._syncClockVisibility();
 
-			// Initialize lighting for current segment if lighting integration is enabled
 			if (TCMUtils.isGM()) {
 				const currentSegment = TCMUtils.getSetting('currentSegment');
 				await this.lighting.handleLightingChange(currentSegment);
 			}
 		});
 
-		// Re-render overlay when settings change
 		Hooks.on('updateSetting', (setting) => {
-			if (setting.key.startsWith(`${TCM_CONSTANTS.MODULE_ID}.`)) {
-				const clockVisible = TCMUtils.getSetting('clockVisible');
-				if (clockVisible) {
-					this.render({ force: true });
-				}
-			}
+			if (!setting.key.startsWith(`${TCM_CONSTANTS.MODULE_ID}.`)) return;
+			void this._handleSettingUpdate(setting.key);
 		});
 
 		Hooks.on('getSceneControlButtons', (controls) => {
+			if (!controls.tokens?.tools) return;
+
 			const currentVisibility = TCMUtils.getSetting('clockVisible');
 			controls.tokens.tools['tcm-clock'] = {
 				name: 'tcm-clock',
-				toggle: true,
-				title: game.i18n.localize("TCMCLOCK.controls.toggleClock"),
-				icon: "fas fa-clock",
+				button: true,
+				title: game.i18n.localize('TCMCLOCK.controls.toggleClock'),
+				icon: 'fa-solid fa-clock',
+				order: Object.keys(controls.tokens.tools).length,
 				active: currentVisibility,
 				onChange: () => this.toggleClockVisibility()
 			};
 		});
 	}
 
-    async _prepareContext(_options = {}) {
-      const context = {};
-      return context;
-    }
+	async _handleSettingUpdate(settingKey) {
+		if (settingKey.endsWith('.clockVisible')) {
+			await this._syncClockVisibility();
+			return;
+		}
 
-    async _renderHTML(_context, _options) {
-        return null;
-    }
+		if (TCMUtils.getSetting('clockVisible') && this.rendered) {
+			await this.render({ force: true });
+		}
+
+		if (settingKey.endsWith('.lightingIntegration') && TCMUtils.isGM()) {
+			const currentSegment = TCMUtils.getSetting('currentSegment');
+			void this.lighting.handleLightingChange(currentSegment).catch((error) => {
+				console.warn('TCM Clock: Could not synchronize lighting integration:', error);
+			});
+		}
+	}
+
+	async _syncClockVisibility() {
+		this.visibilityMutation = this.visibilityMutation
+			.catch(() => {})
+			.then(async () => {
+				const visible = TCMUtils.getSetting('clockVisible');
+				if (visible) {
+					if (!this.rendered) await this.render({ force: true });
+				} else if (this.rendered) {
+					await this.close({ animate: false });
+				}
+			});
+
+		return this.visibilityMutation;
+	}
+
+	async _prepareContext(_options = {}) {
+		return {};
+	}
+
+	async _renderHTML(_context, _options) {
+		return null;
+	}
 
 	_postRender() {
 		this._setupDraggable(this.element);
 	}
 
-    _replaceHTML(_result, content, _options) {
-        this._updateDynamicContent(content);
-    }
-
+	_replaceHTML(_result, content, _options) {
+		this._updateDynamicContent(content);
+	}
 
 	async _renderFrame(options) {
 		const context = await this._prepareContext(options);
@@ -110,16 +132,10 @@ class TCMClock extends ApplicationV2 {
 		if (!target) return frame;
 
 		const overlayContainer = this._createOverlayContainer();
-
-		// Create the static frame elements
 		overlayContainer.innerHTML = this._generateStaticFrameHTML();
-
-		// Add event listeners for GM controls
 		this._attachEventListeners(overlayContainer);
-
 		target.appendChild(overlayContainer);
 
-		// Update dynamic content
 		await this._renderHTML(context, options);
 		this._replaceHTML(null, overlayContainer);
 
@@ -132,21 +148,21 @@ class TCMClock extends ApplicationV2 {
 		const rotation = currentSegment * 60;
 
 		return `
-<div class="clock-container">
-<div class="clock-face">
-<div class="clock-arrow" id="clock-arrow-overlay" style="transform: translate(-50%, -100%) rotate(${rotation}deg);"></div>
-</div>
-<div class="night-counter">
-Night <span class="night-number" id="night-number-overlay">${currentNight}</span>
-</div>
-${TCMUtils.isGM() ? `
-<div class="gm-controls">
-<button id="prev-time" title="${game.i18n.localize('TCMCLOCK.controls.previousTime')}">◄</button>
-<button id="next-time" title="${game.i18n.localize('TCMCLOCK.controls.nextTime')}">►</button>
-</div>
-` : ''}
-</div>
-`;
+	<div class="clock-container">
+	<div class="clock-face">
+	<div class="clock-arrow" id="clock-arrow-overlay" style="transform: translate(-50%, -100%) rotate(${rotation}deg);"></div>
+	</div>
+	<div class="night-counter">
+	Night <span class="night-number" id="night-number-overlay">${currentNight}</span>
+	</div>
+	${TCMUtils.isGM() ? `
+	<div class="gm-controls">
+	<button id="prev-time" title="${game.i18n.localize('TCMCLOCK.controls.previousTime')}">◄</button>
+	<button id="next-time" title="${game.i18n.localize('TCMCLOCK.controls.nextTime')}">►</button>
+	</div>
+	` : ''}
+	</div>
+	`;
 	}
 
 	_attachEventListeners(container) {
@@ -156,20 +172,17 @@ ${TCMUtils.isGM() ? `
 		const nextBtn = container.querySelector('#next-time');
 		const nightCounter = container.querySelector('.night-counter');
 
-		if (prevBtn) prevBtn.onclick = () => this.changeTime(-1);
-		if (nextBtn) nextBtn.onclick = () => this.changeTime(1);
-		if (nightCounter) nightCounter.onclick = () => this.editNightCounter();
+		if (prevBtn) prevBtn.onclick = () => void this.changeTime(-1);
+		if (nextBtn) nextBtn.onclick = () => void this.changeTime(1);
+		if (nightCounter) nightCounter.onclick = () => void this.editNightCounter();
 	}
 
 	_createOverlayContainer() {
 		const overlayContainer = document.createElement('div');
 		overlayContainer.id = 'tcm-clock-overlay';
 		overlayContainer.className = 'tcm-clock-overlay';
-
-		// Style the overlay to be positioned absolutely and not interfere with UI
 		overlayContainer.style.pointerEvents = 'auto';
 		overlayContainer.style.userSelect = 'none';
-
 		return overlayContainer;
 	}
 
@@ -184,57 +197,54 @@ ${TCMUtils.isGM() ? `
 		}
 
 		if (existingNightNumber) {
-			const currentNight = TCMUtils.getSetting('currentNight');
-			existingNightNumber.textContent = currentNight;
+			existingNightNumber.textContent = TCMUtils.getSetting('currentNight');
 		}
 	}
 
 	_setupDraggable(element) {
-		const dragHandle = element.querySelector('.clock-face');
-		if (dragHandle) {
-			new foundry.applications.ux.Draggable(this, element, dragHandle);
-		}
+		const dragHandle = element?.querySelector('.clock-face');
+		if (dragHandle) new foundry.applications.ux.Draggable(this, element, dragHandle);
 	}
 
-	async changeTime(direction) {
-		if (!TCMUtils.isGM()) return;
+	changeTime(direction) {
+		if (!TCMUtils.isGM()) return Promise.resolve();
 
+		this.timeMutation = this.timeMutation
+			.catch(() => {})
+			.then(() => this._changeTime(direction));
+
+		return this.timeMutation.catch((error) => {
+			console.warn('TCM Clock: Could not change time:', error);
+		});
+	}
+
+	async _changeTime(direction) {
 		let currentSegment = TCMUtils.getSetting('currentSegment');
 		let currentNight = TCMUtils.getSetting('currentNight');
 		const nightIncrementSegment = TCMUtils.getSetting('nightIncrementSegment');
 		const incrementSegmentIndex = TCMUtils.getSegmentIndex(nightIncrementSegment);
-
 		const oldSegment = currentSegment;
+
 		currentSegment += direction;
+		if (currentSegment < 0) currentSegment = TCM_CONSTANTS.SEGMENTS.length - 1;
+		if (currentSegment >= TCM_CONSTANTS.SEGMENTS.length) currentSegment = 0;
 
-		// Handle wraparound
-		if (currentSegment < 0) {
-			currentSegment = 5;
-		} else if (currentSegment > 5) {
-			currentSegment = 0;
-		}
-
-		// Handle night changes based on configurable segment
-		if (direction > 0) {
-			// Moving forward: increment night when we reach the incrementSegmentIndex
-			if (currentSegment === incrementSegmentIndex) {
-				currentNight++;
-			}
-		} else if (direction < 0) {
-			// Moving backward: decrement night when we reach the segment BEFORE incrementSegmentIndex
-			const previousSegmentIndex = (incrementSegmentIndex - 1 + 6) % 6;
-			if (currentSegment === previousSegmentIndex) {
-				currentNight = Math.max(1, currentNight - 1);
-			}
+		if (direction > 0 && currentSegment === incrementSegmentIndex) currentNight++;
+		if (direction < 0) {
+			const previousSegmentIndex = (incrementSegmentIndex - 1 + TCM_CONSTANTS.SEGMENTS.length)
+				% TCM_CONSTANTS.SEGMENTS.length;
+			if (currentSegment === previousSegmentIndex) currentNight = Math.max(1, currentNight - 1);
 		}
 
 		await TCMUtils.setSetting('currentSegment', currentSegment);
 		await TCMUtils.setSetting('currentNight', currentNight);
 
-		// Handle lighting change
-		await this.lighting.handleLightingChange(currentSegment, oldSegment);
+		void this.lighting.handleLightingChange(currentSegment, oldSegment).catch((error) => {
+			console.warn('TCM Clock: Could not change scene lighting:', error);
+		});
 
-		// Broadcast to other clients
+		if (direction > 0) void this._playTransitionSound();
+
 		TCMUtils.emitSocket({
 			action: 'updateTime',
 			segment: currentSegment,
@@ -242,58 +252,63 @@ ${TCMUtils.isGM() ? `
 		});
 	}
 
+	async _playTransitionSound() {
+		if (!TCMUtils.getSetting('clockSound')) return;
+
+		try {
+			await foundry.audio.AudioHelper.play({
+				src: TCM_CONSTANTS.AUDIO.TRANSITION_SRC,
+				channel: 'interface',
+				volume: TCMUtils.getSetting('clockSoundVolume'),
+				autoplay: true
+			}, true);
+		} catch (error) {
+			console.warn('TCM Clock: Could not play transition sound:', error);
+		}
+	}
+
 	async editNightCounter() {
 		if (!TCMUtils.isGM()) return;
 
 		const currentNight = TCMUtils.getSetting('currentNight');
-
 		const newNight = await foundry.applications.api.DialogV2.prompt({
 			window: { title: game.i18n.localize('TCMCLOCK.dialog.editNightCounter.title') },
 			content: `<p>${game.i18n.localize('TCMCLOCK.dialog.editNightCounter.content')}</p><input type="number" name="night" value="${currentNight}" min="1" style="width: 100%;">`,
 			ok: {
 				label: game.i18n.localize('TCMCLOCK.dialog.editNightCounter.change'),
-				callback: (_event, button, _dialog) => {
-					return button.form.elements.night.valueAsNumber;
-				},
+				callback: (_event, button, _dialog) => button.form.elements.night.valueAsNumber
 			}
 		});
 
-		if (newNight && newNight !== currentNight) {
-			await TCMUtils.setSetting('currentNight', Math.max(1, newNight));
-
-			// Broadcast to other clients
-			TCMUtils.emitSocket({
-				action: 'updateNight',
-				night: newNight
-			});
+		if (Number.isFinite(newNight) && newNight !== currentNight) {
+			const normalizedNight = Math.max(1, newNight);
+			await TCMUtils.setSetting('currentNight', normalizedNight);
+			TCMUtils.emitSocket({ action: 'updateNight', night: normalizedNight });
 		}
 	}
 
 	async toggleClockVisibility() {
-		const currentVisibility = TCMUtils.getSetting('clockVisible');
-		await TCMUtils.setSetting('clockVisible', !currentVisibility);
-
-		if (currentVisibility) {
-			this.close({ animate: false });
-		} else {
-			this.render({ force: true });
-		}
+		await TCMUtils.setSetting('clockVisible', !TCMUtils.getSetting('clockVisible'));
+		await this._syncClockVisibility();
 	}
 
 	_onSocketMessage(data) {
 		if (!TCMUtils.isGM()) return;
 
-		switch (data.action) {
-			case 'updateTime':
-				const oldSegment = TCMUtils.getSetting('currentSegment');
-				TCMUtils.setSetting('currentSegment', data.segment);
-				TCMUtils.setSetting('currentNight', data.night);
-				this.lighting.handleLightingChange(data.segment, oldSegment);
-				break;
-			case 'updateNight':
-				TCMUtils.setSetting('currentNight', data.night);
-				break;
-		}
+		this.timeMutation = this.timeMutation
+			.catch(() => {})
+			.then(async () => {
+				if (data.action === 'updateTime') {
+					const oldSegment = TCMUtils.getSetting('currentSegment');
+					await TCMUtils.setSetting('currentSegment', data.segment);
+					await TCMUtils.setSetting('currentNight', data.night);
+					void this.lighting.handleLightingChange(data.segment, oldSegment).catch((error) => {
+						console.warn('TCM Clock: Could not apply socket lighting update:', error);
+					});
+				} else if (data.action === 'updateNight') {
+					await TCMUtils.setSetting('currentNight', Math.max(1, Number(data.night)));
+				}
+			});
 	}
 }
 

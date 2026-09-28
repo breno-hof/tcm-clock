@@ -1,97 +1,123 @@
-import { TCMClockSettings } from './settings.js';
 import { TCM_CONSTANTS } from './constants.js';
 import { TCMUtils } from './utils.js';
 
 export class TCMClockLighting {
 	constructor() {
-		this.lightingIntervalId = null;
+		this.transitionId = 0;
+		this.currentEnvironment = null;
+		this.pendingUpdate = null;
+		this.updateWorkerRunning = false;
 		this.interpolationDuration = TCM_CONSTANTS.ANIMATION.INTERPOLATION_DURATION;
-		this.interpolationSteps = TCM_CONSTANTS.ANIMATION.INTERPOLATION_STEPS;
+		this.interpolationInterval = TCM_CONSTANTS.ANIMATION.INTERPOLATION_INTERVAL;
 	}
 
+	initialize(scene = TCMUtils.getActiveScene()) {
+		this.cleanup();
+		this.currentEnvironment = TCMUtils.getSceneEnvironment(scene);
+	}
 
-	async updateSceneLighting(environment) {
-		if (!TCMUtils.isGM()) return;
+	_isCurrentTransition(transitionId, scene) {
+		return transitionId === this.transitionId
+			&& scene === TCMUtils.getActiveScene()
+			&& TCMUtils.isGM()
+			&& TCMUtils.getSetting('lightingIntegration');
+	}
+
+	async _drainSceneUpdates() {
+		if (this.updateWorkerRunning) return;
+		this.updateWorkerRunning = true;
 
 		try {
-			const updateData = {
-				"environment.base.hue": environment.hue,
-				"environment.base.luminosity": environment.luminosity,
-				"environment.base.saturation": environment.saturation,
-				"environment.base.shadows": environment.shadows,
-				"environment.base.intensity": environment.intensity
-			};
+			while (this.pendingUpdate) {
+				const request = this.pendingUpdate;
+				this.pendingUpdate = null;
 
-			await TCMUtils.updateScene(updateData);
-		} catch (error) {
-			console.warn("TCM Clock: Could not update scene lighting:", error);
+				if (!TCMUtils.isGM() || request.scene !== TCMUtils.getActiveScene()) {
+					request.resolve(false);
+					continue;
+				}
+
+				try {
+					await TCMUtils.updateScene(request.environment, request.scene);
+					request.resolve(true);
+				} catch (error) {
+					console.warn('TCM Clock: Could not update scene lighting:', error);
+					request.resolve(false);
+				}
+			}
+		} finally {
+			this.updateWorkerRunning = false;
+			if (this.pendingUpdate) void this._drainSceneUpdates();
 		}
 	}
 
-
-	async handleLightingChange(newSegment, oldSegment = null) {
-		if (!TCMUtils.getSetting('lightingIntegration')) return;
-		if (!TCMUtils.isGM()) return;
-
-		const newSegmentEnv = TCMUtils.getSegmentEnvironment(newSegment);
-		if (!newSegmentEnv) return;
-
-		// Clean up any existing interpolation
-		this.cleanup();
-
-		// If no old segment specified, get current environment or use immediate transition
-		if (oldSegment === null) {
-			await this.updateSceneLighting(newSegmentEnv);
-			return;
+	_updateSceneLighting(environment, scene) {
+		if (!TCMUtils.isGM() || !scene || scene !== TCMUtils.getActiveScene()) {
+			return Promise.resolve(false);
 		}
-
-		const oldSegmentEnv = TCMUtils.getSegmentEnvironment(oldSegment);
-		if (!oldSegmentEnv) {
-			await this.updateSceneLighting(newSegmentEnv);
-			return;
-		}
-
-		// Start interpolation
-		await this.interpolateLighting(oldSegmentEnv, newSegmentEnv);
-	}
-
-	async interpolateLighting(fromEnv, toEnv) {
-		const stepInterval = this.interpolationDuration / this.interpolationSteps;
-		let currentStep = 0;
-
 
 		return new Promise((resolve) => {
-			this.lightingIntervalId = setInterval(async () => {
-				currentStep++;
-				const progress = Math.min(currentStep / this.interpolationSteps, 1);
-
-				// Use easing function for smoother interpolation
-				const easedProgress = TCMUtils.easeInOutQuad(progress);
-
-				const interpolatedEnv = {
-					hue: TCMUtils.lerpHue(fromEnv.hue, toEnv.hue, easedProgress),
-					luminosity: TCMUtils.lerp(fromEnv.luminosity, toEnv.luminosity, easedProgress),
-					saturation: TCMUtils.lerp(fromEnv.saturation, toEnv.saturation, easedProgress),
-					shadows: TCMUtils.lerp(fromEnv.shadows, toEnv.shadows, easedProgress),
-					intensity: TCMUtils.lerp(fromEnv.intensity, toEnv.intensity, easedProgress)
-				};
-
-				await this.updateSceneLighting(interpolatedEnv);
-
-				if (progress >= 1) {
-					clearInterval(this.lightingIntervalId);
-					this.lightingIntervalId = null;
-					resolve();
-				}
-			}, stepInterval);
+			if (this.pendingUpdate) this.pendingUpdate.resolve(false);
+			this.pendingUpdate = { environment: { ...environment }, scene, resolve };
+			this.currentEnvironment = { ...environment };
+			void this._drainSceneUpdates();
 		});
 	}
 
+	async handleLightingChange(newSegment, oldSegment = null) {
+		this.cleanup();
+
+		if (!TCMUtils.getSetting('lightingIntegration') || !TCMUtils.isGM()) return false;
+
+		const scene = TCMUtils.getActiveScene();
+		const newSegmentEnv = TCMUtils.getSegmentEnvironment(newSegment);
+		if (!scene || !newSegmentEnv) return false;
+
+		const fromEnv = this.currentEnvironment
+			|| TCMUtils.getSceneEnvironment(scene)
+			|| (oldSegment === null ? null : TCMUtils.getSegmentEnvironment(oldSegment));
+		this.currentEnvironment = fromEnv ? { ...fromEnv } : null;
+
+		const transitionId = this.transitionId;
+		if (oldSegment === null || !fromEnv) {
+			return this._updateSceneLighting(newSegmentEnv, scene);
+		}
+
+		return this._interpolateLighting(fromEnv, newSegmentEnv, scene, transitionId);
+	}
+
+	async _interpolateLighting(fromEnv, toEnv, scene, transitionId) {
+		const startedAt = globalThis.performance?.now?.() ?? Date.now();
+		let progress = 0;
+
+		while (this._isCurrentTransition(transitionId, scene)) {
+			const now = globalThis.performance?.now?.() ?? Date.now();
+			progress = Math.min((now - startedAt) / this.interpolationDuration, 1);
+			const easedProgress = TCMUtils.easeInOutQuad(progress);
+			const interpolatedEnv = {
+				hue: TCMUtils.lerpHue(fromEnv.hue, toEnv.hue, easedProgress),
+				luminosity: TCMUtils.lerp(fromEnv.luminosity, toEnv.luminosity, easedProgress),
+				saturation: TCMUtils.lerp(fromEnv.saturation, toEnv.saturation, easedProgress),
+				shadows: TCMUtils.lerp(fromEnv.shadows, toEnv.shadows, easedProgress),
+				intensity: TCMUtils.lerp(fromEnv.intensity, toEnv.intensity, easedProgress)
+			};
+
+			const applied = await this._updateSceneLighting(interpolatedEnv, scene);
+			if (!applied || !this._isCurrentTransition(transitionId, scene)) return false;
+			if (progress >= 1) return true;
+
+			const remaining = this.interpolationDuration * (1 - progress);
+			await new Promise((resolve) => setTimeout(resolve, Math.min(this.interpolationInterval, remaining)));
+		}
+
+		return false;
+	}
 
 	cleanup() {
-		if (this.lightingIntervalId) {
-			clearInterval(this.lightingIntervalId);
-			this.lightingIntervalId = null;
+		this.transitionId += 1;
+		if (this.pendingUpdate) {
+			this.pendingUpdate.resolve(false);
+			this.pendingUpdate = null;
 		}
 	}
 }

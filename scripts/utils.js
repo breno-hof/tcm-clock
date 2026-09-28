@@ -66,8 +66,22 @@ export class TCMUtils {
 		return game.scenes.active;
 	}
 
-	static async updateScene(updateData) {
-		const scene = this.getActiveScene();
+	static getSceneEnvironment(scene = this.getActiveScene()) {
+		const base = scene?.environment?.base;
+		if (!base) return null;
+
+		const environment = {
+			hue: Number(base.hue),
+			luminosity: Number(base.luminosity),
+			saturation: Number(base.saturation),
+			shadows: Number(base.shadows),
+			intensity: Number(base.intensity)
+		};
+
+		return Object.values(environment).every(Number.isFinite) ? environment : null;
+	}
+
+	static async updateScene(updateData, scene = this.getActiveScene()) {
 		if (!scene) return;
 
 		try {

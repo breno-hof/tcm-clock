@@ -1,6 +1,10 @@
 {
   "TCMCLOCK.settings.lightingIntegration.Name": "Enable Lighting Integration (WARNING: overrides scene settings)",
   "TCMCLOCK.settings.lightingIntegration.Hint": "Automatically adjust scene ambient lighting based on clock segments",
+  "TCMCLOCK.settings.clockSound.Name": "Play transition sound",
+  "TCMCLOCK.settings.clockSound.Hint": "Play a short sound when advancing to the next time segment",
+  "TCMCLOCK.settings.clockSoundVolume.Name": "Transition sound volume",
+  "TCMCLOCK.settings.clockSoundVolume.Hint": "Volume for the clock transition sound",
   "TCMCLOCK.controls.toggleClock": "Toggle CM Clock",
   "TCMCLOCK.controls.previousTime": "Rewind",
   "TCMCLOCK.controls.nextTime": "Advance",

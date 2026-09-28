@@ -14,14 +14,30 @@ jobs:
 
       - name: Get release version
         id: get-version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          VERSION=${{ github.event.release.tag_name }}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION="${RELEASE_TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
+
+      - name: Validate release assets
+        env:
+          MANIFEST_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/module.json
+          DOWNLOAD_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/tcm-clock.zip
+          EXPECTED_VERSION: ${{ steps.get-version.outputs.version }}
+        run: |
+          curl --fail --location --retry 3 "$MANIFEST_URL" -o /tmp/module.json
+          curl --fail --location --retry 3 "$DOWNLOAD_URL" -o /tmp/tcm-clock.zip
+          jq empty /tmp/module.json
+          test "$(jq -r .id /tmp/module.json)" = "tcm-clock"
+          test "$(jq -r .version /tmp/module.json)" = "$EXPECTED_VERSION"
+          unzip -t /tmp/tcm-clock.zip
+          echo "Release assets validated"
 
       - name: Publish to Foundry
         id: publish-to-foundry-website
         uses: cs96and/FoundryVTT-release-package@v1
         with:
           package-token: ${{ secrets.PACKAGE_TOKEN }}
-          manifest-url: https://github.com/${{github.repository}}/releases/download/${{steps.get-version.outputs.version}}/module.json
+          manifest-url: https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/module.json

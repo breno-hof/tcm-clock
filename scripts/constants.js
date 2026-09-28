@@ -5,12 +5,12 @@ export const TCM_CONSTANTS = {
 
 	get SEGMENT_CHOICES() {
 		return {
-			'midnight': game.i18n.localize('TCMCLOCK.segments.midnight'),
-			'witching': game.i18n.localize('TCMCLOCK.segments.witching'),
-			'twilight': game.i18n.localize('TCMCLOCK.segments.twilight'),
-			'dusk': game.i18n.localize('TCMCLOCK.segments.dusk'),
-			'nightfall': game.i18n.localize('TCMCLOCK.segments.nightfall'),
-			'evening': game.i18n.localize('TCMCLOCK.segments.evening')
+			midnight: game.i18n.localize('TCMCLOCK.segments.midnight'),
+			witching: game.i18n.localize('TCMCLOCK.segments.witching'),
+			twilight: game.i18n.localize('TCMCLOCK.segments.twilight'),
+			dusk: game.i18n.localize('TCMCLOCK.segments.dusk'),
+			nightfall: game.i18n.localize('TCMCLOCK.segments.nightfall'),
+			evening: game.i18n.localize('TCMCLOCK.segments.evening')
 		};
 	},
 
@@ -36,7 +36,12 @@ export const TCM_CONSTANTS = {
 		TRANSITION_DURATION: 1500,
 		VIBRATION_DURATION: 600,
 		INTERPOLATION_DURATION: 7500,
-		INTERPOLATION_STEPS: 1000
+		INTERPOLATION_INTERVAL: 50
+	},
+
+	AUDIO: {
+		TRANSITION_SRC: 'modules/tcm-clock/assets/clock-ticking.mp3',
+		DEFAULT_VOLUME: 0.8
 	},
 
 	SCALE_LIMITS: {

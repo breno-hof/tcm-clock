@@ -103,7 +103,7 @@ class TCMLightingSubmenu extends HandlebarsApplicationMixin(ApplicationV2) {
 		for (const { key, options } of settings) {
 			await TCMUtils.setSetting(key, options.default);
 		}
-		this.render(true);
+		await this.render({ force: true });
 	}
 
 	static async onSubmit(_event, _form, formData) {
@@ -228,6 +228,25 @@ export class TCMClockSettings {
 			type: String,
 			default: 'midnight',
 			choices: TCM_CONSTANTS.SEGMENT_CHOICES
+		});
+
+		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'clockSound', {
+			name: 'TCMCLOCK.settings.clockSound.Name',
+			hint: 'TCMCLOCK.settings.clockSound.Hint',
+			scope: 'user',
+			config: true,
+			type: Boolean,
+			default: true
+		});
+
+		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'clockSoundVolume', {
+			name: 'TCMCLOCK.settings.clockSoundVolume.Name',
+			hint: 'TCMCLOCK.settings.clockSoundVolume.Hint',
+			scope: 'user',
+			config: true,
+			type: Number,
+			default: TCM_CONSTANTS.AUDIO.DEFAULT_VOLUME,
+			range: { min: 0, max: 1, step: 0.05 }
 		});
 
 		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'lightingIntegration', {

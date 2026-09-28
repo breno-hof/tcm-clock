@@ -23,6 +23,3 @@ jobs:
         with:
           actionToken: ${{ secrets.GITHUB_TOKEN }}
           manifestFileName: 'module.json'
-          manifestProtectedTrue: true
-          publicRepositoryAndBranch: 'K-JBoon/tcm-clock/master'
-        continue-on-error: true
