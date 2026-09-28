@@ -39,13 +39,19 @@ export const TCM_CONSTANTS = {
 		INTERPOLATION_INTERVAL: 50
 	},
 
+	TIME: {
+		STEP_SECONDS: 6 * 60 * 60,
+		SECONDS_PER_DAY: 24 * 60 * 60
+	},
+
 	AUDIO: {
 		TRANSITION_SRC: 'modules/tcm-clock/assets/clock-ticking.mp3',
-		DEFAULT_VOLUME: 0.8
+		DEFAULT_VOLUME: 0.8,
+		START_DELAY_MS: 20
 	},
 
 	SCALE_LIMITS: {
-		MIN: 0.5,
+		MIN: 0.25,
 		MAX: 2.0,
 		STEP: 0.1
 	}

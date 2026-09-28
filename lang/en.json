@@ -8,6 +8,7 @@
   "TCMCLOCK.controls.toggleClock": "Toggle CM Clock",
   "TCMCLOCK.controls.previousTime": "Rewind",
   "TCMCLOCK.controls.nextTime": "Advance",
+  "TCMCLOCK.calendar.day": "Day",
   "TCMCLOCK.controls.editDay": "Edit Day Counter",
   "TCMCLOCK.segments.witching": "Witching Hour",
   "TCMCLOCK.segments.twilight": "Twilight Hour",

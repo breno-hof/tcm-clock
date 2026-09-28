@@ -207,27 +207,17 @@ export class TCMClockSettings {
 		// General settings - ordered as requested
 		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'clockScale', {
 			name: 'Clock Scale',
-			hint: 'Scale factor for the clock widget size (0.5-2.0)',
+			hint: 'Scale factor for the clock widget size (0.25-2.0)',
 			scope: 'user',
 			config: true,
 			type: Number,
 			default: 0.75,
-			requiresReload: true,
+			requiresReload: false,
 			range: {
 				min: TCM_CONSTANTS.SCALE_LIMITS.MIN,
 				max: TCM_CONSTANTS.SCALE_LIMITS.MAX,
 				step: TCM_CONSTANTS.SCALE_LIMITS.STEP
 			}
-		});
-
-		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'nightIncrementSegment', {
-			name: 'Night Increment Segment',
-			hint: 'Which time segment triggers the night counter to increment',
-			scope: 'world',
-			config: true,
-			type: String,
-			default: 'midnight',
-			choices: TCM_CONSTANTS.SEGMENT_CHOICES
 		});
 
 		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'clockSound', {

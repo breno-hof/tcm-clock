@@ -66,6 +66,28 @@ export class TCMUtils {
 		return game.scenes.active;
 	}
 
+	static getWorldTime() {
+		return Number(game.time?.worldTime ?? 0);
+	}
+
+	static getSegmentFromWorldTime(worldTime = this.getWorldTime()) {
+		const step = TCM_CONSTANTS.TIME.STEP_SECONDS;
+		const segment = Math.floor(Number(worldTime) / step);
+		return ((segment % TCM_CONSTANTS.SEGMENTS.length) + TCM_CONSTANTS.SEGMENTS.length)
+			% TCM_CONSTANTS.SEGMENTS.length;
+	}
+
+	static getCalendarDay(worldTime = this.getWorldTime()) {
+		const calendarDay = Number(game.time?.calendar?.day);
+		if (Number.isFinite(calendarDay)) return calendarDay;
+		return Math.floor(Number(worldTime) / TCM_CONSTANTS.TIME.SECONDS_PER_DAY) + 1;
+	}
+
+	static async advanceWorldTime(deltaSeconds) {
+		if (!game.time?.advance) throw new Error('Foundry GameTime API is unavailable');
+		return game.time.advance(Number(deltaSeconds));
+	}
+
 	static getSceneEnvironment(scene = this.getActiveScene()) {
 		const base = scene?.environment?.base;
 		if (!base) return null;
