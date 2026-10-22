@@ -27,6 +27,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      # Secrets can't be read in `if:` directly, so expose it as env to gate the Foundry publish.
+      PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,7 +72,8 @@ jobs:
             --latest
 
       - name: Publish to Foundry
+        if: env.PACKAGE_TOKEN != ''
         uses: cs96and/FoundryVTT-release-package@v1
         with:
-          package-token: ${{ secrets.PACKAGE_TOKEN }}
+          package-token: ${{ env.PACKAGE_TOKEN }}
           manifest-url: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/module.json
