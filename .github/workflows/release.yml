@@ -1,0 +1,75 @@
+name: Release
+
+# Every push to master that touches the module builds and publishes a new version.
+# The version is MAJOR.MINOR from module.json plus the workflow run number as the patch
+# (e.g. 0.1.0 in module.json -> 0.1.<run>). Bump MAJOR.MINOR in module.json to start a new series.
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'module.json'
+      - 'scripts/**'
+      - 'styles/**'
+      - 'templates/**'
+      - 'lang/**'
+      - 'assets/**'
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute version
+        id: version
+        run: |
+          BASE="$(jq -r .version module.json | cut -d. -f1,2)"
+          VERSION="${BASE}.${{ github.run_number }}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Stamp manifest
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          MANIFEST_URL: https://github.com/${{ github.repository }}/releases/latest/download/module.json
+          DOWNLOAD_URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/tcm-clock.zip
+        run: |
+          jq --arg v "$VERSION" --arg m "$MANIFEST_URL" --arg d "$DOWNLOAD_URL" \
+            '.version = $v | .manifest = $m | .download = $d' module.json > module.tmp.json
+          mv module.tmp.json module.json
+          cat module.json
+
+      - name: Build package
+        run: |
+          zip -r tcm-clock.zip module.json README.md LICENSE-APACHE.txt LICENSE-MIT.txt \
+            assets lang scripts styles templates
+          unzip -l tcm-clock.zip
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh release create "$TAG" module.json tcm-clock.zip \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes \
+            --latest
+
+      - name: Publish to Foundry
+        uses: cs96and/FoundryVTT-release-package@v1
+        with:
+          package-token: ${{ secrets.PACKAGE_TOKEN }}
+          manifest-url: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/module.json
