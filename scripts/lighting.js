@@ -20,6 +20,7 @@ export class TCMClockLighting {
 		return transitionId === this.transitionId
 			&& scene === TCMUtils.getActiveScene()
 			&& TCMUtils.isGM()
+			&& TCMUtils.isEnabled()
 			&& TCMUtils.getSetting('lightingIntegration');
 	}
 
@@ -38,7 +39,7 @@ export class TCMClockLighting {
 				}
 
 				try {
-					await TCMUtils.updateScene(request.environment, request.scene);
+					await TCMUtils.updateScene(TCMUtils.toSceneEnvironmentUpdate(request.environment), request.scene);
 					request.resolve(true);
 				} catch (error) {
 					console.warn('TCM Clock: Could not update scene lighting:', error);
@@ -67,7 +68,7 @@ export class TCMClockLighting {
 	async handleLightingChange(newSegment, oldSegment = null) {
 		this.cleanup();
 
-		if (!TCMUtils.getSetting('lightingIntegration') || !TCMUtils.isGM()) return false;
+		if (!TCMUtils.isEnabled() || !TCMUtils.getSetting('lightingIntegration') || !TCMUtils.isGM()) return false;
 
 		const scene = TCMUtils.getActiveScene();
 		const newSegmentEnv = TCMUtils.getSegmentEnvironment(newSegment);
@@ -99,7 +100,8 @@ export class TCMClockLighting {
 				luminosity: TCMUtils.lerp(fromEnv.luminosity, toEnv.luminosity, easedProgress),
 				saturation: TCMUtils.lerp(fromEnv.saturation, toEnv.saturation, easedProgress),
 				shadows: TCMUtils.lerp(fromEnv.shadows, toEnv.shadows, easedProgress),
-				intensity: TCMUtils.lerp(fromEnv.intensity, toEnv.intensity, easedProgress)
+				intensity: TCMUtils.lerp(fromEnv.intensity, toEnv.intensity, easedProgress),
+				darkness: TCMUtils.lerp(fromEnv.darkness, toEnv.darkness, easedProgress)
 			};
 
 			const applied = await this._updateSceneLighting(interpolatedEnv, scene);

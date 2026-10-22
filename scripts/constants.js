@@ -24,12 +24,12 @@ export const TCM_CONSTANTS = {
 	},
 
 	DEFAULT_BASE_ENV: {
-		dusk: { luminosity: -0.3, saturation: -0.15, shadows: 0.15, intensity: 0.6 },
-		nightfall: { luminosity: -0.3, saturation: -0.4, shadows: 0.25, intensity: 0.5 },
-		evening: { luminosity: -0.6, saturation: -0.6, shadows: 0.55, intensity: 0.25 },
-		midnight: { luminosity: -1, saturation: -0.5, shadows: 0.75, intensity: 0.3 },
-		witching: { luminosity: -0.9, saturation: -0.4, shadows: 0.65, intensity: 0.45 },
-		twilight: { luminosity: -0.6, saturation: -0.35, shadows: 0.6, intensity: 0.45 }
+		dusk: { luminosity: -0.3, saturation: -0.15, shadows: 0.15, intensity: 0.6, darkness: 0 },
+		nightfall: { luminosity: -0.3, saturation: -0.4, shadows: 0.25, intensity: 0.5, darkness: 0.35 },
+		evening: { luminosity: -0.6, saturation: -0.6, shadows: 0.55, intensity: 0.25, darkness: 0.75 },
+		midnight: { luminosity: -1, saturation: -0.5, shadows: 0.75, intensity: 0.3, darkness: 1 },
+		witching: { luminosity: -0.9, saturation: -0.4, shadows: 0.65, intensity: 0.45, darkness: 0.85 },
+		twilight: { luminosity: -0.6, saturation: -0.35, shadows: 0.6, intensity: 0.45, darkness: 0.25 }
 	},
 
 	ANIMATION: {
@@ -40,8 +40,9 @@ export const TCM_CONSTANTS = {
 	},
 
 	TIME: {
-		STEP_SECONDS: 6 * 60 * 60,
-		SECONDS_PER_DAY: 24 * 60 * 60
+		SEGMENT_HOURS: 4,
+		// Dusk (segment 0) starts at 11am; twilight (segment 5) covers 7am-11am.
+		FIRST_SEGMENT_START_HOUR: 11
 	},
 
 	AUDIO: {

@@ -8,16 +8,17 @@ Check out their amazing Foundry VTT module [here](https://foundryvtt.com/package
 
 ## Features
 
-- Six-segment clock widget with GM time controls; each step advances the Foundry world clock by six hours.
+- Six-segment clock widget with GM time controls; each segment lasts four hours and each step moves the Foundry world clock to the start of the next or previous segment.
+- Segments follow the time of day: Twilight 7am–11am, Dusk 11am–3pm, Nightfall 3pm–7pm, Evening 7pm–11pm, Midnight 11pm–3am, Witching 3am–7am.
 - Per-user show/hide control in the Token Scene Controls.
 - An in-widget toggle to show or hide the clock, plus the Token Scene Controls toggle.
 - Per-user clock scale from 0.25x to 2x, transition sound and sound volume settings.
-- A short creaking/ticking sound, delayed by a few milliseconds, when advancing; rewinding is silent.
+- A short creaking/ticking sound, delayed by a few milliseconds, when advancing or rewinding.
 - The displayed day is read from Foundry's configured world calendar rather than a module-only counter.
-- Optional scene lighting integration with serialized, latest-wins transitions.
+- Optional scene lighting integration with serialized, latest-wins transitions; each segment sets the scene's ambient environment and darkness level (day/night).
 - Lighting transitions start from the currently applied scene environment and stop safely when the scene or target changes.
 
-The clock uses Foundry's `game.time` calendar as its source of truth. Advancing or rewinding the widget calls `game.time.advance(21600)` or `game.time.advance(-21600)`, respectively. This also means calendar integrations and D&D5e time-sensitive features receive the same world-time update.
+The clock uses Foundry's `game.time` calendar as its source of truth. Advancing or rewinding the widget calls `game.time.advance(...)` with the number of seconds needed to reach the start of the next or previous segment. This also means calendar integrations and D&D5e time-sensitive features receive the same world-time update.
 
 ## Preview
 ![Clock Widget](readme-assets/clock.png)

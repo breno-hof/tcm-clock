@@ -48,6 +48,8 @@ class TCMClock extends ApplicationV2 {
 
 		Hooks.on('canvasReady', async () => {
 			this.lighting.initialize();
+			if (!TCMUtils.isEnabled()) return;
+
 			await this._handleWorldTimeUpdate(TCMUtils.getWorldTime());
 			await this._syncClockVisibility();
 
@@ -67,7 +69,7 @@ class TCMClock extends ApplicationV2 {
 		});
 
 		Hooks.on('getSceneControlButtons', (controls) => {
-			if (!controls.tokens?.tools) return;
+			if (!controls.tokens?.tools || !TCMUtils.isEnabled()) return;
 
 			const currentVisibility = TCMUtils.getSetting('clockVisible');
 			controls.tokens.tools['tcm-clock'] = {
@@ -83,6 +85,12 @@ class TCMClock extends ApplicationV2 {
 	}
 
 	async _handleSettingUpdate(settingKey) {
+		if (settingKey.endsWith('.moduleEnabled')) {
+			await this._handleEnabledChange();
+			return;
+		}
+		if (!TCMUtils.isEnabled()) return;
+
 		if (settingKey.endsWith('.clockVisible')) {
 			await this._syncClockVisibility();
 			return;
@@ -104,11 +112,23 @@ class TCMClock extends ApplicationV2 {
 		}
 	}
 
+	async _handleEnabledChange() {
+		if (TCMUtils.isEnabled()) {
+			await this._handleWorldTimeUpdate(TCMUtils.getWorldTime());
+		} else {
+			this.lighting.cleanup();
+			this.animations.cleanup();
+		}
+
+		await this._syncClockVisibility();
+		ui.controls?.render();
+	}
+
 	async _syncClockVisibility() {
 		this.visibilityMutation = this.visibilityMutation
 			.catch(() => {})
 			.then(async () => {
-				const visible = TCMUtils.getSetting('clockVisible');
+				const visible = TCMUtils.isEnabled() && TCMUtils.getSetting('clockVisible');
 				if (visible) {
 					if (!this.rendered) await this.render({ force: true });
 				} else if (this.rendered) {
@@ -120,6 +140,8 @@ class TCMClock extends ApplicationV2 {
 	}
 
 	async _handleWorldTimeUpdate(worldTime) {
+		if (!TCMUtils.isEnabled()) return;
+
 		const nextSegment = TCMUtils.getSegmentFromWorldTime(worldTime);
 		const nextDay = TCMUtils.getCalendarDay(worldTime);
 		const previousSegment = this.displaySegment ?? this.previousSegment ?? nextSegment;
@@ -246,7 +268,7 @@ class TCMClock extends ApplicationV2 {
 	}
 
 	changeTime(direction) {
-		if (!TCMUtils.isGM()) return Promise.resolve();
+		if (!TCMUtils.isGM() || !TCMUtils.isEnabled()) return Promise.resolve();
 
 		this.timeMutation = this.timeMutation
 			.catch(() => {})
@@ -258,12 +280,11 @@ class TCMClock extends ApplicationV2 {
 	}
 
 	async _changeTime(direction) {
-		const delta = Math.sign(direction) * TCM_CONSTANTS.TIME.STEP_SECONDS;
+		const delta = TCMUtils.getSegmentStepDelta(direction);
 		const worldTime = await TCMUtils.advanceWorldTime(delta);
 		await this._handleWorldTimeUpdate(worldTime);
 
-		// Rewinding is intentionally silent; only forward movement plays audio.
-		if (direction > 0) void this._playTransitionSound();
+		void this._playTransitionSound();
 	}
 
 	async _playTransitionSound() {

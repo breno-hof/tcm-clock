@@ -70,6 +70,7 @@ class TCMLightingSubmenu extends HandlebarsApplicationMixin(ApplicationV2) {
 				data[`${this.segment}BaseShadows`],
 				data[`${this.segment}BaseHue`],
 				data[`${this.segment}BaseIntensity`],
+				data[`${this.segment}Darkness`],
 			],
 			buttons: [
 				{ type: 'submit', icon: 'fa-solid fa-save', label: 'SETTINGS.Save' },
@@ -167,6 +168,16 @@ class TCMLightingSubmenu extends HandlebarsApplicationMixin(ApplicationV2) {
 					default: defaultBaseEnv[segment].intensity,
 					range: { min: 0, max: 1, step: 0.05 }
 				}
+			},
+			{
+				key: `${segment}Darkness`,
+				options: {
+					name: `Darkness Level`,
+					hint: `Scene darkness level for ${segment} (0 = day, 1 = night)`,
+					type: Number,
+					default: defaultBaseEnv[segment].darkness,
+					range: { min: 0, max: 1, step: 0.05 }
+				}
 			}
 		];
 	}
@@ -174,6 +185,16 @@ class TCMLightingSubmenu extends HandlebarsApplicationMixin(ApplicationV2) {
 
 export class TCMClockSettings {
 	static register() {
+		// Master switch: keeps the module installed and active but turns off the clock, time sync and lighting
+		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'moduleEnabled', {
+			name: 'TCMCLOCK.settings.moduleEnabled.Name',
+			hint: 'TCMCLOCK.settings.moduleEnabled.Hint',
+			scope: 'world',
+			config: true,
+			type: Boolean,
+			default: true
+		});
+
 		// Current time segment (0-5)
 		game.settings.register(TCM_CONSTANTS.MODULE_ID, 'currentSegment', {
 			name: 'Current Time Segment',
